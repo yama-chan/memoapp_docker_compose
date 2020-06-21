@@ -1,0 +1,45 @@
+version: '3'
+services:
+  
+  golang:
+    build:
+      # ディレクトリパス（dockerfileがあるディレクトリパス）
+      context: .
+      # dockerfileとして扱うファイルのファイル名
+      dockerfile: Dockerfile
+    # 今回は環境変数をファイルで指定
+    # env_file.envから自由に環境変数を指定できるように開発できる
+    env_file: env_file.env
+    ports:
+      # 8080ポートを公開
+      - "8080:8080"
+    # シェルスクリプトにてアプリを起動
+    command: bash -c 'sh start_app.sh'
+    links:
+        - mysql
+    network_mode: bridge
+    tty: true
+    # restart: always
+
+  # ↓mysqlでホストのDNS名で名前解決も可能
+  mysql:
+    image: mysql:5.7.24
+    volumes:
+      # 初回起動時に./db/initの「.sh」や「.sql」ファイルを起動させる
+      - ./db/init:/docker-entrypoint-initdb.d
+    # コンテナ間の”ホスト名の設定”はDocker Composeのcontainer_nameで変更できます。
+    # services：のブロックの名前（今回だとmysql）と異なる場合、
+    # 両方の名前（"services：のブロックの名前"と"container_name"）がコンテナ間通信のDNS名として（名前解決されているため）使用できます。 
+    # Dockerを使用して、Composeが開始したコンテナを管理する必要がない限り、通常、これを設定する必要もありません。
+    # 今回だとコンテナ間で、このDBに接続する時のホストは"mysql"か"mysql_host_name"で接続出来る
+    # 参考:https://sleepless-se.net/2019/09/15/multi-docker-compose-network-setting/#Docker_Compose-3
+    container_name: mysql_host_name
+    environment:
+      MYSQL_DATABASE: "memoapp"
+      MYSQL_ROOT_PASSWORD: "admin"
+      MYSQL_USER: "user"
+      MYSQL_PASSWORD: "password"
+    command: mysqld --character-set-server=utf8 --collation-server=utf8_unicode_ci --skip-character-set-client-handshake
+    ports:
+      - "3306:3306"
+    network_mode: bridge

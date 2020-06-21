@@ -1,0 +1,17 @@
+{% block content %}
+  <p>{{ Message }}</p>
+  <p>{{ Now }}</p>
+<h2>メモ</h2>
+<form action="/" method="post">
+  <input name="memo" type="text">
+  <input type="submit" value="追加">
+</form>
+ <ul>
+   {% for memo in Memos %}
+   <li> {{ memo.Memo }}</li>
+   <form action="/{{memo.ID}}" method="delete">
+    <input type="submit" value="削除">
+  </form>
+   {% endfor %}
+ </ul>
+  {% endblock %}
