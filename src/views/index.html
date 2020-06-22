@@ -2,16 +2,63 @@
   <p>{{ Message }}</p>
   <p>{{ Now }}</p>
 <h2>メモ</h2>
-<form action="/" method="post">
+<form name="form_memo">
   <input name="memo" type="text">
-  <input type="submit" value="追加">
+  {# <input type="submit" value="追加"> #}
+  <input data-action="submit" data-value="/" value="追加" onclick="setRequest(this);">
 </form>
- <ul>
-   {% for memo in Memos %}
-   <li> {{ memo.Memo }}</li>
-   <form action="/{{memo.ID}}" method="delete">
-    <input type="submit" value="削除">
-  </form>
-   {% endfor %}
- </ul>
-  {% endblock %}
+  <ul>
+    {% for memo in Memos %}
+      <li> {{ memo.Memo }}
+        <a href="#" class="memo" data-value="{{ memo.ID }}" data-action="delete" onclick="setRequest(this);">
+          削除
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% endblock %}
+<script>
+const INDEX_URL_PATH = "/"
+function setRequest(button){
+  action = button.getAttribute("data-action");
+  value = button.getAttribute("data-value");
+  //リクエスト送信の準備
+  var request = new XMLHttpRequest();
+  //jsonでレスポンスを取得する
+  request.responseType = 'json';
+  //リクエストが完了した時の処理
+  request.onload = function () {
+    var res_data = this.response;
+    console.log(res_data);
+    getIndex()
+  };
+  //リクエストを作成
+  switch (action) {
+    case 'get':
+      request.open('GET', '/' + value, true);
+      break;
+    case 'post':
+      request.open('POST', '/' + value, true);
+      break;
+    case 'delete':
+      request.open('DELETE', '/' + value, true);
+      break;
+    case 'submit':
+      //formエレメントからformデータを取得
+      fd = new FormData(document.forms["form_memo"])
+      request.open('POST', '/', true);
+      //formデータ付きでリクエストの送信
+      request.send(fd);
+      return;
+    default:
+      console.log(`Sorry, we are out of ${expr}.`);
+  }
+  //リクエストの送信
+  request.send();
+}
+function getIndex(){
+  window.location.href = INDEX_URL_PATH;
+}
+</script>
+
+
