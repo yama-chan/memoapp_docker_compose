@@ -23,12 +23,12 @@ func MemoCreate(memo *model.Memo) (sql.Result, error) {
 
 func GetMemoList() ([]*model.Memo, error) {
 
-	// TODO: カーソル? ORDER BYはIDでなく作成日付でやるように修正
+	// TODO: カーソル?
 	// if cursor <= 0 {
 	// 	cursor = math.MaxInt32
 	// }
 
-	// TODO: プライマリーキーとは別にidがある理由は？
+	// TODO: プライマリーキーとは別にidがある理由は？ORDER BYはIDでなく作成日付でやるように修正
 	query := `SELECT * FROM memos ORDER BY id desc;`
 
 	// make 関数の第 1 引数([]int)が型、第 2 引数(length)が 長さ 、第 3 引数(capacity)が 容量 を意味しています。

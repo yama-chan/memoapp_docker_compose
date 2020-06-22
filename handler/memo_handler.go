@@ -69,7 +69,7 @@ func MemoCreate(c echo.Context) error {
 		c.Logger().Errorf("failed to get LastInsertId : %v\n", err)
 		return c.JSON(http.StatusInternalServerError, MemoAppOutput{})
 	}
-	//　①なぜint型でキャストしているのか？ / ②modelに関することはmodelで関数化しよう（setIdとか）
+	//①なぜint型でキャストしているのか？ / ②modelに関することはmodelで関数化しよう（setIdとか）
 	memo.SetId(int(id)) // idをセット
 
 	return c.JSON(http.StatusOK, MemoAppOutput{Memo: memo})
