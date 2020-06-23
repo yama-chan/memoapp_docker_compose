@@ -8,31 +8,32 @@ import (
 
 	"memoapp/handler"
 
+	// 参考：Go勉強会
+	// DBのドライバパッケージを読み込む。
+	// ドライバパッケージの読み込みは、mainパッケージで実施したほうが良い。
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// const tmplPath = "src/view"
-
-// var db *sqlx.DB
-
 func main() {
 	e := echo.New()
 
-	//サーバ起動
+	//サーバ起動 サーバエラー時はFatal（= os.Exit(1)）
 	e.Logger.Fatal(start_application(e))
 }
 
 func connectDB(e *echo.Echo) (*sqlx.DB, error) {
 
+	//環境変数
 	dsn := os.Getenv("DSN")
 	if dsn == "" {
 		return nil, errors.New("DSN enviroment value is blank")
 	}
 
-	// db, err := sqlx.Connect("mysql", dsn) //sqlx.Connectでsqlx.Openとdb.Ping()をやっているので修正してもいいかも
+	//db, err := sqlx.Connect("mysql", dsn) //sqlx.Connectでsqlx.Openとdb.Ping()をやっているので修正してもいいかも
+	//DB接続
 	db, err := sqlx.Open("mysql", dsn)
 	if err != nil {
 		e.Logger.Errorf("failed to open database connection: %v\n", err)
@@ -45,6 +46,7 @@ func connectDB(e *echo.Echo) (*sqlx.DB, error) {
 	// 死んだコネクションをいつまでも持ち続けるので設定するほうが良い。
 	db.SetConnMaxLifetime(time.Minute)
 
+	//疎通確認
 	if err := db.Ping(); err != nil {
 		e.Logger.Errorf("failed to Ping verifies a connection : %v\n", err)
 		return nil, err
@@ -56,23 +58,26 @@ func connectDB(e *echo.Echo) (*sqlx.DB, error) {
 
 func start_application(e *echo.Echo) error {
 
-	// DB接続
+	//DB接続
 	db, err := connectDB(e)
 	if err != nil {
 		e.Logger.Errorf("failed to  connection DB: %v\n", err)
 		return err
 	}
+
+	//deferでClose
 	defer db.Close()
-	// repository.SetDB(db)
 
 	//静的ファイル
 	e.Static("/styles", "src/styles")
+
 	//ミドルウェア
 	e.Use(
 		middleware.Recover(),
 		middleware.Logger(),
 		middleware.Gzip(),
 	)
+
 	//ルーティング
 	hdr := handler.ProvideHandler(db)
 	e.POST("/", hdr.MemoCreate)
@@ -85,6 +90,7 @@ func start_application(e *echo.Echo) error {
 		errCh <- e.Start(":8080")
 	}()
 
+	//チャネルの受信待ち
 	select {
 	case err := <-errCh:
 		return err
