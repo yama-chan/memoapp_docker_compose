@@ -8,27 +8,37 @@ import (
 	"memoapp/model"
 	"memoapp/repository"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 )
 
 type (
-	htmlData      map[string]interface{}
+	//htmlData　htmlテンプレートに渡すデータ型
+	htmlData map[string]interface{}
+
+	//MemoAppOutput レスポンス用のデータ型
 	MemoAppOutput struct {
-		Memo             *model.Memo
-		Message          string
-		ValidationErrors []string //なぜスライス？
+		Memo    *model.Memo
+		Message string
+	}
+
+	//Handler メモ用ハンドラー
+	handler struct {
+		repo repository.Memorepo
 	}
 )
 
-// type MemoAppOutput struct {
-// 	Memo             *model.Memo
-// 	Message          string
-// 	ValidationErrors []string //なぜスライス？
-// }
+func ProvideHandler(db *sqlx.DB) handler {
+	return handler{
+		repo: repository.Memorepo{
+			DB: db,
+		},
+	}
+}
 
-func MemoIndex(c echo.Context) error {
+func (h handler) MemoIndex(c echo.Context) error {
 
-	memos, err := repository.GetMemoList()
+	memos, err := h.repo.GetMemoList()
 	if err != nil {
 		c.Logger().Errorf("failed to select db request : %v\n", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -40,7 +50,7 @@ func MemoIndex(c echo.Context) error {
 		})
 }
 
-func MemoCreate(c echo.Context) error {
+func (h handler) MemoCreate(c echo.Context) error {
 
 	var (
 		memo = &model.Memo{}
@@ -51,14 +61,13 @@ func MemoCreate(c echo.Context) error {
 	if err != nil {
 		c.Logger().Errorf("failed to Bind request params : %v\n", err)
 		return c.JSON(http.StatusBadRequest,
-			MemoAppOutput{ValidationErrors: []string{
-				err.Error()},
-			})
+			MemoAppOutput{Message: "入力データに誤りがあります。"},
+		)
 	}
 
 	// バリデート必要？モデルからValidata関数呼び出す？
 
-	res, err := repository.MemoCreate(memo)
+	res, err := h.repo.MemoCreate(memo)
 	if err != nil {
 		c.Logger().Errorf("failed to insert memo data [%v] : %v\n", memo, err)
 		return c.JSON(http.StatusInternalServerError, MemoAppOutput{})
@@ -76,14 +85,14 @@ func MemoCreate(c echo.Context) error {
 }
 
 //削除機能
-func MemoDelete(c echo.Context) error {
+func (h handler) MemoDelete(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.Logger().Errorf("failed to converted to type int : %v\n", err)
 		return c.JSON(http.StatusInternalServerError, "")
 	}
 
-	err = repository.MemoDelete(id)
+	err = h.repo.MemoDelete(id)
 	if err != nil {
 		c.Logger().Errorf("failed to delete memo data [id :%v]: %v\n", id, err)
 		return c.JSON(http.StatusInternalServerError, "")

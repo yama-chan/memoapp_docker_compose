@@ -2,16 +2,21 @@ package repository
 
 import (
 	"database/sql"
-
 	"memoapp/model"
+
+	"github.com/jmoiron/sqlx"
 )
 
-func MemoCreate(memo *model.Memo) (sql.Result, error) {
+type Memorepo struct {
+	DB *sqlx.DB
+}
+
+func (m Memorepo) MemoCreate(memo *model.Memo) (sql.Result, error) {
 
 	query := `INSERT INTO memos (memo)
 	VALUES (:memo);`
 
-	tx := db.MustBegin()
+	tx := m.DB.MustBegin()
 	res, err := tx.NamedExec(query, memo)
 	if err != nil {
 		tx.Rollback()
@@ -21,7 +26,7 @@ func MemoCreate(memo *model.Memo) (sql.Result, error) {
 	return res, nil
 }
 
-func GetMemoList() ([]*model.Memo, error) {
+func (m Memorepo) GetMemoList() ([]*model.Memo, error) {
 
 	// TODO: カーソル?
 	// if cursor <= 0 {
@@ -40,16 +45,16 @@ func GetMemoList() ([]*model.Memo, error) {
 	//予め容量を1０としている理由はLIMITがあるから？しかし長さは０なので空のスライスができる
 	// つまり空のスライスが出来るがappendしていって長さが10を超えた場合は容量が倍になる設定
 	memos := make([]*model.Memo, 0)
-	if err := db.Select(&memos, query); err != nil { //Select関数内でappendしているので長さは０で可変にする
+	if err := m.DB.Select(&memos, query); err != nil { //Select関数内でappendしているので長さは０で可変にする
 		return nil, err
 	}
 	return memos, nil
 }
 
-func MemoDelete(id int) error {
+func (m Memorepo) MemoDelete(id int) error {
 	query := "DELETE FROM memos WHERE id = ?"
 
-	tx := db.MustBegin()
+	tx := m.DB.MustBegin()
 	if _, err := tx.Exec(query, id); err != nil {
 		tx.Rollback()
 		return err

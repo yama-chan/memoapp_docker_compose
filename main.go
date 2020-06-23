@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"memoapp/handler"
-	"memoapp/repository"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -21,14 +20,7 @@ import (
 
 func main() {
 	e := echo.New()
-	//静的ファイル
-	e.Static("/styles", "src/styles")
-	//ミドルウェア
-	e.Use(
-		middleware.Recover(),
-		middleware.Logger(),
-		middleware.Gzip(),
-	)
+
 	//サーバ起動
 	e.Logger.Fatal(start_application(e))
 }
@@ -64,18 +56,30 @@ func connectDB(e *echo.Echo) (*sqlx.DB, error) {
 
 func start_application(e *echo.Echo) error {
 
+	// DB接続
 	db, err := connectDB(e)
 	if err != nil {
 		e.Logger.Errorf("failed to  connection DB: %v\n", err)
 		return err
 	}
 	defer db.Close()
+	// repository.SetDB(db)
 
-	repository.SetDB(db)
-	e.POST("/", handler.MemoCreate)
-	e.GET("/", handler.MemoIndex)
-	e.DELETE("/:id", handler.MemoDelete)
+	//静的ファイル
+	e.Static("/styles", "src/styles")
+	//ミドルウェア
+	e.Use(
+		middleware.Recover(),
+		middleware.Logger(),
+		middleware.Gzip(),
+	)
+	//ルーティング
+	hdr := handler.ProvideHandler(db)
+	e.POST("/", hdr.MemoCreate)
+	e.GET("/", hdr.MemoIndex)
+	e.DELETE("/:id", hdr.MemoDelete)
 
+	//ゴルーチン/チャネル
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- e.Start(":8080")
