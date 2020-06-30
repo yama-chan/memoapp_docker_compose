@@ -20,8 +20,12 @@ import (
 func main() {
 	e := echo.New()
 
-	//サーバ起動 サーバエラー時はFatal（= os.Exit(1)）
-	e.Logger.Fatal(start_application(e))
+	//サーバ起動
+	err := (start_application(e))
+	if err != nil {
+		// サーバエラー時はFatal（= os.Exit(1)）
+		log.Fatal(err)
+	}
 }
 
 func connectDB(e *echo.Echo) (*sqlx.DB, error) {
@@ -61,7 +65,7 @@ func start_application(e *echo.Echo) error {
 	//DB接続
 	db, err := connectDB(e)
 	if err != nil {
-		e.Logger.Errorf("failed to  connection DB: %v\n", err)
+		e.Logger.Errorf("failed to connection DB: %v\n", err)
 		return err
 	}
 
@@ -75,14 +79,11 @@ func start_application(e *echo.Echo) error {
 	e.Use(
 		middleware.Recover(),
 		middleware.Logger(),
-		middleware.Gzip(),
+		middleware.Gzip(), //HTTPレスポンスをGzip圧縮して返す
 	)
 
 	//ルーティング
-	hdr := handler.ProvideHandler(db)
-	e.POST("/", hdr.MemoCreate)
-	e.GET("/", hdr.MemoIndex)
-	e.DELETE("/:id", hdr.MemoDelete)
+	handler.ProvideHandler(e, db)
 
 	//ゴルーチン/チャネル
 	errCh := make(chan error, 1)
@@ -95,4 +96,5 @@ func start_application(e *echo.Echo) error {
 	case err := <-errCh:
 		return err
 	}
+	//TODO: gracefulにサーバ停止する処理も追加する。現状ではシグナルを考慮しない
 }

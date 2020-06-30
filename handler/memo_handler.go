@@ -28,12 +28,16 @@ type (
 	}
 )
 
-func ProvideHandler(db *sqlx.DB) handler {
-	return handler{
+// ProvideHandler メモハンドラーからルーティングを設定する
+func ProvideHandler(e *echo.Echo, db *sqlx.DB) {
+	hdr := handler{
 		repo: repository.Memorepo{
 			DB: db,
 		},
 	}
+	e.POST("/", hdr.MemoCreate)
+	e.GET("/", hdr.MemoIndex)
+	e.DELETE("/:id", hdr.MemoDelete)
 }
 
 func (h handler) MemoIndex(c echo.Context) error {
@@ -65,21 +69,30 @@ func (h handler) MemoCreate(c echo.Context) error {
 		)
 	}
 
-	// バリデート必要？モデルからValidata関数呼び出す？
+	// バリデートを実行
+	err = memo.Validate()
+	if err != nil {
+		c.Logger().Errorf("Validate error : %v\n", err)
+		return c.JSON(http.StatusBadRequest,
+			MemoAppOutput{Message: "バリデーションでエラーが発生しました。"},
+		)
+	}
 
 	res, err := h.repo.MemoCreate(memo)
 	if err != nil {
 		c.Logger().Errorf("failed to insert memo data [%v] : %v\n", memo, err)
-		return c.JSON(http.StatusInternalServerError, MemoAppOutput{})
+		return c.JSON(http.StatusInternalServerError,
+			MemoAppOutput{Message: "データ挿入エラー"})
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
 		c.Logger().Errorf("failed to get LastInsertId : %v\n", err)
-		return c.JSON(http.StatusInternalServerError, MemoAppOutput{})
+		return c.JSON(http.StatusInternalServerError,
+			MemoAppOutput{Message: "サーバーエラー"})
 	}
 	//①なぜint型でキャストしているのか？ / ②modelに関することはmodelで関数化しよう（setIdとか）
-	memo.SetId(int(id)) // idをセット
+	memo.SetID(int(id)) // idをセット
 
 	return c.JSON(http.StatusOK, MemoAppOutput{Memo: memo})
 }
