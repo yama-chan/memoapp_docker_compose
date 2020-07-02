@@ -13,16 +13,16 @@ import (
 )
 
 type (
-	//htmlData　htmlテンプレートに渡すデータ型
+	// htmlData　htmlテンプレートに渡すデータ型
 	htmlData map[string]interface{}
 
-	//MemoAppOutput レスポンス用のデータ型
+	// MemoAppOutput レスポンス用のデータ型
 	MemoAppOutput struct {
 		Memo    *model.Memo
 		Message string
 	}
 
-	//Handler メモ用ハンドラー
+	// Handler メモ用ハンドラー
 	handler struct {
 		repo repository.Memorepo
 	}
@@ -97,7 +97,7 @@ func (h handler) MemoCreate(c echo.Context) error {
 	return c.JSON(http.StatusOK, MemoAppOutput{Memo: memo})
 }
 
-//削除機能
+// 削除機能
 func (h handler) MemoDelete(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

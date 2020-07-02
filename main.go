@@ -21,23 +21,23 @@ func main() {
 	e := echo.New()
 
 	//サーバ起動
-	err := (start_application(e))
+	err := (start_application(e, ":8080"))
 	if err != nil {
 		// サーバエラー時はFatal（= os.Exit(1)）
-		log.Fatal(err)
+		e.Logger.Fatal(err)
 	}
 }
 
 func connectDB(e *echo.Echo) (*sqlx.DB, error) {
 
-	//環境変数
+	// 環境変数
 	dsn := os.Getenv("DSN")
 	if dsn == "" {
 		return nil, errors.New("DSN enviroment value is blank")
 	}
 
 	//db, err := sqlx.Connect("mysql", dsn) //sqlx.Connectでsqlx.Openとdb.Ping()をやっているので修正してもいいかも
-	//DB接続
+	// DB接続
 	db, err := sqlx.Open("mysql", dsn)
 	if err != nil {
 		e.Logger.Errorf("failed to open database connection: %v\n", err)
@@ -50,7 +50,7 @@ func connectDB(e *echo.Echo) (*sqlx.DB, error) {
 	// 死んだコネクションをいつまでも持ち続けるので設定するほうが良い。
 	db.SetConnMaxLifetime(time.Minute)
 
-	//疎通確認
+	// 疎通確認
 	if err := db.Ping(); err != nil {
 		e.Logger.Errorf("failed to Ping verifies a connection : %v\n", err)
 		return nil, err
@@ -60,41 +60,42 @@ func connectDB(e *echo.Echo) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func start_application(e *echo.Echo) error {
+// start_application アプリケーションを起動する
+func start_application(e *echo.Echo, port string) error {
 
-	//DB接続
+	// DB接続
 	db, err := connectDB(e)
 	if err != nil {
 		e.Logger.Errorf("failed to connection DB: %v\n", err)
 		return err
 	}
 
-	//deferでClose
+	// deferでClose
 	defer db.Close()
 
-	//静的ファイル
+	// 静的ファイル
 	e.Static("/styles", "src/styles")
 
-	//ミドルウェア
+	// ミドルウェア
 	e.Use(
 		middleware.Recover(),
 		middleware.Logger(),
 		middleware.Gzip(), //HTTPレスポンスをGzip圧縮して返す
 	)
 
-	//ルーティング
+	// ルーティング
 	handler.ProvideHandler(e, db)
 
-	//ゴルーチン/チャネル
+	// ゴルーチン/チャネル
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- e.Start(":8080")
+		errCh <- e.Start(port)
 	}()
 
-	//チャネルの受信待ち
+	// チャネルの受信待ち
 	select {
 	case err := <-errCh:
 		return err
 	}
-	//TODO: gracefulにサーバ停止する処理も追加する。現状ではシグナルを考慮しない
+	// TODO: gracefulにサーバ停止する処理も追加する。現状ではシグナルを考慮しない
 }
