@@ -1,23 +1,28 @@
 package main
 
 import (
-	"errors"
+	"context"
 	"log"
+	"memoapp/internal/handler"
 	"os"
-	"time"
-
-	"memoapp/handler"
+	"os/signal"
+	"syscall"
 
 	// 参考：Go勉強会
 	// DBのドライバパッケージを読み込む。
 	// ドライバパッケージの読み込みは、mainパッケージで実施したほうが良い。
+	"github.com/comail/colog"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
+
+	colog.Register()
+	colog.SetDefaultLevel(colog.LInfo)
+	colog.SetMinLevel(colog.LInfo)
+
 	e := echo.New()
 
 	//サーバ起動
@@ -28,74 +33,64 @@ func main() {
 	}
 }
 
-func connectDB(e *echo.Echo) (*sqlx.DB, error) {
-
-	// 環境変数
-	dsn := os.Getenv("DSN")
-	if dsn == "" {
-		return nil, errors.New("DSN enviroment value is blank")
-	}
-
-	//db, err := sqlx.Connect("mysql", dsn) //sqlx.Connectでsqlx.Openとdb.Ping()をやっているので修正してもいいかも
-	// DB接続
-	db, err := sqlx.Open("mysql", dsn)
-	if err != nil {
-		e.Logger.Errorf("failed to open database connection: %v\n", err)
-		// e.Logger.Fatal(err)
-		return nil, err
-	}
-
-	// 参考：Go勉強会
-	// コネクションの有効期限を設定しておかないと、
-	// 死んだコネクションをいつまでも持ち続けるので設定するほうが良い。
-	db.SetConnMaxLifetime(time.Minute)
-
-	// 疎通確認
-	if err := db.Ping(); err != nil {
-		e.Logger.Errorf("failed to Ping verifies a connection : %v\n", err)
-		return nil, err
-	}
-
-	log.Println("データベースに接続しました")
-	return db, nil
-}
-
 // start_application アプリケーションを起動する
 func start_application(e *echo.Echo, port string) error {
 
-	// DB接続
-	db, err := connectDB(e)
-	if err != nil {
-		e.Logger.Errorf("failed to connection DB: %v\n", err)
-		return err
-	}
+	// // DB接続
+	// database, err := database.Connect()
+	// if err != nil {
+	// 	e.Logger.Errorf("failed to connection DB: %v\n", err)
+	// 	return err
+	// }
+	// // deferでClose
+	// defer database.Close()
 
-	// deferでClose
-	defer db.Close()
-
-	// 静的ファイル
-	e.Static("/styles", "src/styles")
+	//  ハンドラー生成
+	handler.ProvideHandler(e)
 
 	// ミドルウェア
 	e.Use(
 		middleware.Recover(),
 		middleware.Logger(),
 		middleware.Gzip(), //HTTPレスポンスをGzip圧縮して返す
+		// hdr.WithContextGen(),
+		// hdr.WithProviderFinalizer(),
 	)
+	// 静的ファイル
+	e.Static("/styles", "src/styles")
 
-	// ルーティング
-	handler.ProvideHandler(e, db)
+	// インデックス画面を表示
+	e.GET("/", index)
 
+	// サーバー起動
 	// ゴルーチン/チャネル
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- e.Start(port)
 	}()
 
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
 	// チャネルの受信待ち
 	select {
 	case err := <-errCh:
 		return err
+	case <-quit:
+		err := e.Shutdown(ctx)
+		if err != nil {
+			return err
+		}
+		log.Println("info: Shutdown gracefully...")
+		return nil
 	}
-	// TODO: gracefulにサーバ停止する処理も追加する。現状ではシグナルを考慮しない
+}
+
+func index(c echo.Context) error {
+	return render(c, "src/views/index.html", nil)
 }

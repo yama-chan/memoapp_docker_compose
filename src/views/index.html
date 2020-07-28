@@ -1,64 +1,80 @@
 {% block content %}
-  <p>{{ Message }}</p>
-  <p>{{ Now }}</p>
-<h2>メモ</h2>
-<form name="form_memo">
-  <input name="memo" type="text">
-  {# <input type="submit" value="追加"> #}
-  <input data-action="submit" data-value="/" value="追加" onclick="setRequest(this);">
-</form>
-  <ul>
-    {% for memo in Memos %}
-      <li> {{ memo.Memo }}
-        <a href="#" class="memo" data-value="{{ memo.ID }}" data-action="delete" onclick="setRequest(this);">
-          削除
-        </a>
-      </li>
-    {% endfor %}
-  </ul>
+  <h2>メモ</h2>
+  <p id="message"></p>
+  <form name="form_memo">
+    <input name="memo" type="text">
+    <input type="button" data-action="submit" data-value="/" value="追加" onclick="setRequest(this);">
+  </form>
+  <ul id="memo_list"></ul>
 {% endblock %}
+
 <script>
-const INDEX_URL_PATH = "/"
-function setRequest(button){
-  action = button.getAttribute("data-action");
-  value = button.getAttribute("data-value");
-  //リクエスト送信の準備
-  var request = new XMLHttpRequest();
-  //jsonでレスポンスを取得する
-  request.responseType = 'json';
-  //リクエストが完了した時の処理
-  request.onload = function () {
-    var res_data = this.response;
-    console.log(res_data);
-    getIndex()
-  };
-  //リクエストを作成
-  switch (action) {
-    case 'get':
-      request.open('GET', '/' + value, true);
-      break;
-    case 'post':
-      request.open('POST', '/' + value, true);
-      break;
-    case 'delete':
-      request.open('DELETE', '/' + value, true);
-      break;
-    case 'submit':
-      //formエレメントからformデータを取得
-      fd = new FormData(document.forms["form_memo"])
-      request.open('POST', '/', true);
-      //formデータ付きでリクエストの送信
-      request.send(fd);
-      return;
-    default:
-      console.log(`Sorry, we are out of ${expr}.`);
+
+  const INDEX_URL_PATH = "/"
+  var request = null
+
+  function setRequest(button){
+    value = button.getAttribute("data-value");
+    action = button.getAttribute("data-action");
+    // リクエストを作成
+    switch (action) {
+      case 'get':
+        request.open('GET', '/' + value, true);
+        break;
+      case 'post':
+        request.open('POST', '/' + value, true);
+        break;
+      case 'delete':
+        request.open('DELETE', '/' + value, true);
+        break;
+      case 'submit':
+        fd = new FormData(document.forms["form_memo"])
+        request.open('POST', '/', true);
+        request.send(fd);
+        return;
+      default:
+        console.log(`Sorry, we are out of ${action}.`);
+    }
+    // リクエストの送信
+    request.send();
   }
-  //リクエストの送信
-  request.send();
-}
-function getIndex(){
-  window.location.href = INDEX_URL_PATH;
-}
+
+  function prepareRequest(){
+    var request = new XMLHttpRequest();
+    // jsonでレスポンスを取得する
+    request.responseType = 'json';
+    // リクエストが完了した時の処理
+    request.onload = function () {
+      var res_data = this.response;
+      var list = document.getElementById("memo_list");
+
+      // メッセージのみの場合はindex画面データを取得
+      //if(res_data.Memos == null){
+      if(res_data == null){
+        getIndex();
+        return;
+      }
+
+      console.log(res_data);
+      //res_data.Memos.forEach((memo) => {
+      res_data.forEach((memo) => {
+          list.innerHTML = `<li>${memo.Memo}<a href="" class="memo" data-value="${memo.ID}" data-action="delete" onclick="setRequest(this);">削除</a></li>` + list.innerHTML;
+      });
+    };
+    return request;
+  }
+
+  function getIndex(){
+    var list = document.getElementById("memo_list");
+    list.innerHTML = ""
+    request.open('GET', '/list?a=B&c=D&e=F', true);
+    request.send();
+  }
+
+  window.onload = function() {
+    request = prepareRequest()
+    getIndex();
+  };
 </script>
 
 
