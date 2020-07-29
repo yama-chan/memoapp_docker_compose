@@ -45,7 +45,7 @@ func ConnectRedis() (Database, error) {
 }
 
 // Set メモをキャッシュする
-func (m *MemoCache) Set(memo *model.Memo) ([]byte, error) {
+func (m MemoCache) Set(memo *model.Memo) ([]byte, error) {
 	if m.Conn == nil {
 		return nil, errors.New("not initialized redis conn")
 	}
@@ -63,7 +63,7 @@ func (m *MemoCache) Set(memo *model.Memo) ([]byte, error) {
 }
 
 // SetByte バイト配列をキャッシュする
-func (m *MemoCache) SetByte(bytes []byte) error {
+func (m MemoCache) SetByte(bytes []byte) error {
 	if m.Conn == nil {
 		return errors.New("not initialized redis conn")
 	}
@@ -74,7 +74,7 @@ func (m *MemoCache) SetByte(bytes []byte) error {
 }
 
 // Exists 存在確認
-func (m *MemoCache) Exists() (bool, error) {
+func (m MemoCache) Exists() (bool, error) {
 	if m.Conn == nil {
 		return false, errors.New("not initialized redis conn")
 	}
@@ -86,7 +86,7 @@ func (m *MemoCache) Exists() (bool, error) {
 }
 
 // Get キャッシュデータを取得
-func (m *MemoCache) Get() ([]byte, error) {
+func (m MemoCache) Get() ([]byte, error) {
 	if m.Conn == nil {
 		return nil, errors.New("not initialized redis conn")
 	}
@@ -108,20 +108,17 @@ func (m *MemoCache) Get() ([]byte, error) {
 }
 
 // DEL キャッシュを削除
-func (m *MemoCache) DEL(id int) error {
+func (m MemoCache) DEL(id int) ([]byte, error) {
 	if m.Conn == nil {
-		return errors.New("not initialized redis conn")
+		return nil, errors.New("not initialized redis conn")
 	}
-
 	if _, err := m.Conn.Do("DEL", "memos"); err != nil {
-		return err
+		return nil, err
 	}
-
-	log.Printf("info: remove memo%d\n", id)
-	return nil
+	return nil, nil
 }
 
-func (s *MemoCache) set(m *model.Memo) error {
+func (s MemoCache) set(m *model.Memo) error {
 	if s.Conn == nil {
 		return errors.New("not initialized redis conn")
 	}
@@ -138,7 +135,7 @@ func (s *MemoCache) set(m *model.Memo) error {
 	return nil
 }
 
-func (s *MemoCache) get() ([]byte, error) {
+func (s MemoCache) get() ([]byte, error) {
 	if s.Conn == nil {
 		return nil, errors.New("not initialized redis conn")
 	}

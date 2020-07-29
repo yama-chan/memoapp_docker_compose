@@ -11,7 +11,7 @@ type Database interface {
 	Get() ([]byte, error)
 	Set(*model.Memo) ([]byte, error)
 	SetByte([]byte) error
-	DEL(int) error
+	DEL(int) ([]byte, error)
 	// Connect() (Database, error)
 	// Set(*model.Memo) (sql.Result, error)
 	// GetAll() ([]*model.Memo, error)

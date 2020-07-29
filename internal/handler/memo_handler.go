@@ -36,9 +36,45 @@ var (
 // ProvideHandler メモハンドラーからルーティングを設定する
 func ProvideHandler(e *echo.Echo) *MemoHandler {
 	hdr := &MemoHandler{echo: e}
-	e.GET("/list", hdr.cacheEndpointHandler(hdr.MemoIndex)) // TODO: cacheグループを作成してmiddlewareを反映しておく
-	e.POST("/", hdr.endpointHandler(hdr.MemoCreate))
-	e.DELETE("/:id", hdr.endpointHandler(hdr.MemoDelete))
+	routes := []struct {
+		method     string
+		path       string
+		handler    endPointHandler
+		cache      bool
+		cacheClear bool
+	}{
+		{
+			"GET",
+			"/list",
+			hdr.MemoIndex,
+			true,
+			false,
+		},
+		{
+			"POST",
+			"/",
+			hdr.MemoCreate,
+			false,
+			true,
+		},
+		{
+			"DELETE",
+			"/:id",
+			hdr.MemoDelete,
+			false,
+			true,
+		},
+	}
+	for _, r := range routes {
+		if r.cache {
+			e.Add(r.method, r.path, hdr.cacheEndpointHandler(r.handler))
+		} else {
+			e.Add(r.method, r.path, hdr.endpointHandler(r.handler, r.cacheClear))
+		}
+	}
+	// e.GET("/list", hdr.cacheEndpointHandler(hdr.MemoIndex))
+	// e.POST("/", hdr.endpointHandler(hdr.MemoCreate))
+	// e.DELETE("/:id", hdr.endpointHandler(hdr.MemoDelete))
 	return hdr
 }
 
@@ -71,7 +107,7 @@ func (h *MemoHandler) MemoIndex(c echo.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to Get memo data: [%s]%w\n ", pkgName, err)
 	}
 
-	log.Printf("info: (%s)データ取得OK", pkgName)
+	log.Printf("info: (%s)データ取得OK\n", pkgName)
 	return memos, nil
 
 }
@@ -102,9 +138,8 @@ func (h *MemoHandler) MemoCreate(c echo.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to insert memo data :[%s] %w\n ", pkgName, err)
 	}
 
-	log.Printf(fmt.Sprintf("info: (%s)データ作成OK", pkgName))
+	log.Printf(fmt.Sprintf("info: (%s)データ作成OK\n", pkgName))
 	return memoData, nil
-
 }
 
 // MemoDelete メモ削除
@@ -115,12 +150,12 @@ func (h *MemoHandler) MemoDelete(c echo.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to converted to type int :[%s] %w\n ", pkgName, err)
 	}
 
-	err = h.repo.DEL(id)
+	memoId, err := h.repo.DEL(id)
 	if err != nil {
 		log.Printf("error: データ削除エラー :[%s] %v\n", pkgName, err)
 		return nil, fmt.Errorf("failed to delete memo data: [%s] %w\n ", pkgName, err)
 	}
 
-	log.Printf("info: (%s)データ削除OK", pkgName)
-	return nil, nil
+	log.Printf("info: データ削除OK[%s]\n", pkgName)
+	return memoId, nil
 }

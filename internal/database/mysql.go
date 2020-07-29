@@ -3,6 +3,7 @@ package database
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"memoapp/internal/types"
 	"memoapp/model"
@@ -144,13 +145,23 @@ func (m Memorepo) Get() ([]byte, error) {
 	return bytes, nil
 }
 
-func (m Memorepo) DEL(id int) error {
+// func (m Memorepo) DEL(id int) error {
+func (m Memorepo) DEL(id int) ([]byte, error) {
 	query := "DELETE FROM memos WHERE id = ?"
 
 	tx := m.DB.MustBegin()
 	if _, err := tx.Exec(query, id); err != nil {
 		tx.Rollback()
-		return err
+		return nil, fmt.Errorf("fail to Delete Exec Query: %w", err)
 	}
-	return tx.Commit()
+	tx.Commit()
+	bytes, err := json.Marshal(types.Memos{
+		&model.Memo{
+			ID: id,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("fail to Marshal json: %w", err)
+	}
+	return bytes, nil
 }

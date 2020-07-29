@@ -45,6 +45,7 @@ services:
     network_mode: bridge
 
   # redisキャッシュ
+  # redisのホスト名は"redis"かcontainer_nameの"redis"で名前解決される
   redis:
     image: "redis:latest"
     container_name: redis

@@ -1,17 +1,25 @@
-{% block content %}
-  <h2>メモ</h2>
-  <p id="message"></p>
-  <form name="form_memo">
-    <input name="memo" type="text">
-    <input type="button" data-action="submit" data-value="/" value="追加" onclick="setRequest(this);">
-  </form>
-  <ul id="memo_list"></ul>
-{% endblock %}
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/styles/style.css">
+    <title></title>
+  </head>
+  <body>
+    <h2>メモ</h2>
+    <p id="message"></p>
+    <form name="form_memo">
+      <input name="memo" type="text">
+      <input type="button" data-action="submit" data-value="/" value="追加" onclick="setRequest(this);">
+    </form>
+    <ul id="memo_list"></ul>
+</body>
+</html>
 
 <script>
-
   const INDEX_URL_PATH = "/"
   var request = null
+  var action = null
 
   function setRequest(button){
     value = button.getAttribute("data-value");
@@ -49,17 +57,27 @@
       var list = document.getElementById("memo_list");
 
       // メッセージのみの場合はindex画面データを取得
-      //if(res_data.Memos == null){
-      if(res_data == null){
-        getIndex();
+      if(res_data == null){// データがない場合は何もしない
         return;
       }
 
       console.log(res_data);
-      //res_data.Memos.forEach((memo) => {
-      res_data.forEach((memo) => {
-          list.innerHTML = `<li>${memo.Memo}<a href="" class="memo" data-value="${memo.ID}" data-action="delete" onclick="setRequest(this);">削除</a></li>` + list.innerHTML;
-      });
+      switch (action) {
+        case 'get':
+        case 'post':
+        case 'submit':
+          res_data.forEach((memo) => {
+              list.innerHTML = `<li id="memo${memo.ID}">${memo.Memo}<button data-value="${memo.ID}" data-action="delete" onclick="setRequest(this);">削除</button></li>` + list.innerHTML;
+          });
+          break;
+        case 'delete':
+          res_data.forEach((memo) => {
+            document.getElementById("memo" + memo.ID).remove();
+          });
+          break;
+        default:
+          console.log(`Sorry, we are out of ${action}.`);
+      }
     };
     return request;
   }
@@ -67,6 +85,7 @@
   function getIndex(){
     var list = document.getElementById("memo_list");
     list.innerHTML = ""
+    action = "get"
     request.open('GET', '/list?a=B&c=D&e=F', true);
     request.send();
   }

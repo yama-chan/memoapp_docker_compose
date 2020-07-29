@@ -1,4 +1,19 @@
-.memo_title{
-    display: block;
+button:hover {
+    background: red;
 }
 
+button:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px #cbd6ee;
+}
+
+button {
+    appearance: none;
+    border: 0;
+    border-radius: 5px;
+    background: #de6464f5;
+    color: #fff;
+    padding: 1px 14px;
+    font-size: 11px;
+    margin-left: 5px;
+}
