@@ -5,8 +5,8 @@ import "errors"
 type Memo struct {
 	// ID   int    `db:"id" form:"id" json:"id"`
 	// Memo string `db:"memo" form:"memo" json:"memo"`
-	ID   int    `db:"id" form:"id"`
-	Memo string `db:"memo" form:"memo"`
+	ID   int    `db:"id" form:"id" json:"ID"`
+	Memo string `db:"memo" form:"memo" json:"Memo"`
 }
 
 // SetID MemoのIDの設定を行う

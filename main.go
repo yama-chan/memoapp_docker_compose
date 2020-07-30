@@ -46,13 +46,21 @@ func start_application(e *echo.Echo, port string) error {
 	// defer database.Close()
 
 	//  ハンドラー生成
+	// hdr := handler.ProvideHandler(e)
 	handler.ProvideHandler(e)
+
+	// echoログのフォーマット
+	logger := middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: logFormat(),
+		Output: os.Stdout,
+	})
 
 	// ミドルウェア
 	e.Use(
+		logger,
 		middleware.Recover(),
-		middleware.Logger(),
 		middleware.Gzip(), //HTTPレスポンスをGzip圧縮して返す
+		// hdr.TestGetBodyDump(),
 		// hdr.WithContextGen(),
 		// hdr.WithProviderFinalizer(),
 	)
@@ -93,4 +101,28 @@ func start_application(e *echo.Echo, port string) error {
 
 func index(c echo.Context) error {
 	return render(c, "src/views/index.html", nil)
+}
+
+func logFormat() string {
+	var format string
+	format += "\n[  echo ]"
+	format += "time:${time_unix}\n"
+	// format += "time:${time_rfc3339}\n"
+	format += "- method:${method}\t"
+	format += "status:${status}\n"
+	format += "- error:${error}\n"
+	format += "- path:${path}\t"
+	format += "uri:${uri}\t"
+	format += "host:${host}\t"
+	format += "remote_ip:${remote_ip}\n"
+	format += "- bytes_in:${bytes_in}\t"
+	format += "bytes_out:${bytes_out}\n"
+	format += "- latency:${latency}\t"
+	format += "latency_human:${latency_human}\n\n"
+	// format += "forwardedfor:${header:x-forwarded-for}\n"
+	// format += "referer:${referer}\n"
+	// format += "user_agent:${user_agent}\n"
+	// format += "request_id:${id}\n"
+
+	return format
 }

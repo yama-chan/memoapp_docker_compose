@@ -1,16 +1,12 @@
 package handler
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"memoapp/internal/database"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 // ***********************************************************************
@@ -82,6 +78,7 @@ func (h *MemoHandler) WithContextGen() echo.MiddlewareFunc {
 
 func (h *MemoHandler) cacheEndpointHandler(handler endPointHandler) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		h.HasCache = false
 
 		fmt.Println("c.Path(): " + c.Path())
 		fmt.Println("c.RealIP(): " + c.RealIP())
@@ -113,6 +110,7 @@ func (h *MemoHandler) cacheEndpointHandler(handler endPointHandler) echo.Handler
 				log.Printf("error: Internal Server Error: %v\n", err)
 				return c.NoContent(http.StatusInternalServerError)
 			}
+			h.HasCache = true
 			if data == nil {
 				return c.NoContent(http.StatusNoContent)
 			}
@@ -145,6 +143,7 @@ func (h *MemoHandler) cacheEndpointHandler(handler endPointHandler) echo.Handler
 
 func (h *MemoHandler) endpointHandler(handler endPointHandler, cacheClear bool) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		h.HasCache = false
 
 		fmt.Println("c.Path(): " + c.Path())
 		fmt.Println("c.RealIP(): " + c.RealIP())
@@ -204,22 +203,20 @@ func (h *MemoHandler) execMySQLHandler(handler endPointHandler, c echo.Context) 
 }
 
 func (h *MemoHandler) clearRedisCache() error {
-
 	var (
 		redis database.Database
 	)
+
 	// 型チェック
-	switch htype := h.repo.(type) {
+	switch h.repo.(type) {
 	case database.MemoCache:
-		log.Printf("info: h.repo.(type) =>: %v\n", htype)
 		redis = h.repo
 	default:
-		log.Printf("info: h.repo.(type) =>: %v\n", htype)
 		// Redisに接続
 		r, err := database.ConnectRedis()
 		if err != nil {
-			log.Printf("error: failed to connection DB: %v\n", err)
-			return fmt.Errorf("failed to connection DB: %w", err)
+			log.Printf("error: Redisへの接続に失敗しました。: %v\n", err)
+			return fmt.Errorf("failed to connection Redis: %w", err)
 		}
 		redis = r
 	}
@@ -231,17 +228,30 @@ func (h *MemoHandler) clearRedisCache() error {
 	return err
 }
 
-func TestGetBodyDump() echo.MiddlewareFunc {
-	return middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {
-		var res map[string]interface{}
-		_ = json.Unmarshal(resBody, &res)
-		res["test"] = "xxxx"
-		b, _ := json.Marshal(res)
-		if _, err := io.Copy(c.Response().Writer, bytes.NewBuffer(b)); err != nil {
-			log.Printf("Failed to send out response: %v", err)
-		}
-	})
-}
+// func (h *MemoHandler) TestGetBodyDump() echo.MiddlewareFunc {
+// 	return middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {
+// 		// var res map[string]interface{}
+// 		log.Printf("info: resBody: %v", resBody)
+// 		var memo types.Memos
+// 		err := json.Unmarshal(resBody, &memo)
+// 		if err != nil {
+// 			log.Printf("error: fail to json.Unmarshal: %v\n", err)
+// 		}
+// 		if h.HasCache {
+// 			b, _ := json.Marshal(memo)
+// 			byteBuffer := bytes.NewBuffer(b)
+// 			if _, err := io.Copy(c.Response().Writer, byteBuffer); err != nil {
+// 				log.Printf("Failed to send out response: %v", err)
+// 			}
+// 			log.Printf("info: byteBuffer response: %v", byteBuffer)
+// 			out := MemoAppOutput{
+// 				Memos:   memo,
+// 				Message: "cached data",
+// 			}
+// 			log.Printf("info: response: %v", out)
+// 		}
+// 	})
+// }
 
 func (h *MemoHandler) WithProviderFinalizer() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {

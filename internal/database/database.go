@@ -17,6 +17,10 @@ type Database interface {
 	// GetAll() ([]*model.Memo, error)
 }
 
+var (
+	pkgName = "database"
+)
+
 // Connect DB接続を行う
 func Connect() (Database, error) {
 	return ConnectMySql()

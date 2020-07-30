@@ -5,14 +5,11 @@ go 1.14
 require (
 	github.com/comail/colog v0.0.0-20160416085026-fba8e7b1f46c
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/emicklei/go-restful v2.13.0+incompatible
 	github.com/flosch/pongo2 v0.0.0-20200529170236-5abacdfa4915
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/jmoiron/sqlx v1.2.0
-	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/echo/v4 v4.1.16
-	github.com/sqs/goreturns v0.0.0-20181028201513-538ac6014518 // indirect
-	golang.org/x/tools v0.0.0-20200724022722-7017fd6b1305 // indirect
+	golang.org/x/net v0.0.0-20200625001655-4c5254603344 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

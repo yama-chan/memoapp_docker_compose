@@ -8,15 +8,17 @@ import (
 	"memoapp/internal/types"
 	"memoapp/model"
 
-	"github.com/emicklei/go-restful/log"
+	"log"
+
 	"github.com/labstack/echo/v4"
 )
 
 type (
 	// MemoAppOutput レスポンス用のデータ型
+	// TODO: 最終的にoutputはこれにする
 	MemoAppOutput struct {
-		Memos   types.Memos
-		Message string
+		Memos   types.Memos `json:"Memos"`
+		Message string      `json:"Message"`
 	}
 
 	// MemoHandler メモ用ハンドラー
@@ -40,8 +42,8 @@ func ProvideHandler(e *echo.Echo) *MemoHandler {
 		method     string
 		path       string
 		handler    endPointHandler
-		cache      bool
-		cacheClear bool
+		cache      bool // キャッシュをするかどうか
+		cacheClear bool // レスポンス返却後、キャッシュをリセットするかどうか
 	}{
 		{
 			"GET",
@@ -107,7 +109,7 @@ func (h *MemoHandler) MemoIndex(c echo.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to Get memo data: [%s]%w\n ", pkgName, err)
 	}
 
-	log.Printf("info: (%s)データ取得OK\n", pkgName)
+	log.Printf("info: pkg=%s データ取得OK\n", pkgName)
 	return memos, nil
 
 }
@@ -134,11 +136,11 @@ func (h *MemoHandler) MemoCreate(c echo.Context) ([]byte, error) {
 
 	memoData, err := h.repo.Set(memo)
 	if err != nil {
-		log.Printf("error: データ挿入エラー :[%s] %v\n", pkgName, err)
+		log.Printf("error: pkg=%s データ挿入エラー : %v\n", pkgName, err)
 		return nil, fmt.Errorf("failed to insert memo data :[%s] %w\n ", pkgName, err)
 	}
 
-	log.Printf(fmt.Sprintf("info: (%s)データ作成OK\n", pkgName))
+	log.Printf("info: pkg=%s データ作成OK\n", pkgName)
 	return memoData, nil
 }
 
@@ -146,16 +148,16 @@ func (h *MemoHandler) MemoCreate(c echo.Context) ([]byte, error) {
 func (h *MemoHandler) MemoDelete(c echo.Context) ([]byte, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		log.Printf("error: データ型の変換エラー（int） :[%s] %v\n", pkgName, err)
+		log.Printf("error: データ型の変換エラー（int） : pkg=%s %v\n", pkgName, err)
 		return nil, fmt.Errorf("failed to converted to type int :[%s] %w\n ", pkgName, err)
 	}
 
-	memoId, err := h.repo.DEL(id)
+	memoID, err := h.repo.DEL(id)
 	if err != nil {
 		log.Printf("error: データ削除エラー :[%s] %v\n", pkgName, err)
 		return nil, fmt.Errorf("failed to delete memo data: [%s] %w\n ", pkgName, err)
 	}
 
-	log.Printf("info: データ削除OK[%s]\n", pkgName)
-	return memoId, nil
+	log.Printf("info: pkg=%s データ削除OK", pkgName)
+	return memoID, nil
 }

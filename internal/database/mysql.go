@@ -19,10 +19,6 @@ type Memorepo struct {
 
 var _ Database = Memorepo{}
 
-func (m Memorepo) Close() error {
-	return m.DB.Close()
-}
-
 func ConnectMySql() (Database, error) {
 
 	// 環境変数
@@ -52,6 +48,11 @@ func ConnectMySql() (Database, error) {
 
 	log.Println("info: MySQLデータベースに接続しました")
 	return Memorepo{DB: db}, nil
+}
+
+// Close 接続を閉じる
+func (m Memorepo) Close() error {
+	return m.DB.Close()
 }
 
 // Exists 存在確認

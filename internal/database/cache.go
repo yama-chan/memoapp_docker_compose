@@ -18,10 +18,6 @@ type MemoCache struct {
 
 var _ Database = &MemoCache{}
 
-func (m MemoCache) Close() error {
-	return m.Conn.Close()
-}
-
 // ConnectRedis Redisへ接続する
 func ConnectRedis() (Database, error) {
 
@@ -38,10 +34,15 @@ func ConnectRedis() (Database, error) {
 	conn, err := redis.Dial("tcp", fmt.Sprintf("%s:%s", host, port))
 	if err != nil {
 		log.Printf("error: failed to connect Redis : %v\n", err)
-		panic(err)
+		panic(fmt.Errorf("failed to connect Redis : %w\n ", err))
 	}
 	log.Println("info: Redisデータベースに接続しました")
 	return &MemoCache{Conn: conn}, nil
+}
+
+// Close 接続を閉じる
+func (m MemoCache) Close() error {
+	return m.Conn.Close()
 }
 
 // Set メモをキャッシュする
@@ -73,7 +74,7 @@ func (m MemoCache) SetByte(bytes []byte) error {
 	return nil
 }
 
-// Exists 存在確認
+// Exists キャッシュの存在確認
 func (m MemoCache) Exists() (bool, error) {
 	if m.Conn == nil {
 		return false, errors.New("not initialized redis conn")

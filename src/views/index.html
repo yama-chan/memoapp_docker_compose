@@ -55,10 +55,16 @@
     request.onload = function () {
       var res_data = this.response;
       var list = document.getElementById("memo_list");
+      var message = document.getElementById("message");
 
-      // メッセージのみの場合はindex画面データを取得
-      if(res_data == null){// データがない場合は何もしない
+      // データがない場合は何もしない
+      if(res_data == null){
         return;
+      }
+
+      // メッセージがある場合は表示
+      if(res_data.Message != null && res_data.Message != "" && res_data.Message != undefined){
+        message.innerHTML = res_data.Message;
       }
 
       console.log(res_data);
@@ -84,7 +90,9 @@
 
   function getIndex(){
     var list = document.getElementById("memo_list");
+    var message = document.getElementById("message");
     list.innerHTML = ""
+    message.innerHTML = ""
     action = "get"
     request.open('GET', '/list?a=B&c=D&e=F', true);
     request.send();
