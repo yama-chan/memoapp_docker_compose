@@ -36,15 +36,6 @@ func main() {
 // start_application アプリケーションを起動する
 func start_application(e *echo.Echo, port string) error {
 
-	// // DB接続
-	// database, err := database.Connect()
-	// if err != nil {
-	// 	e.Logger.Errorf("failed to connection DB: %v\n", err)
-	// 	return err
-	// }
-	// // deferでClose
-	// defer database.Close()
-
 	//  ハンドラー生成
 	// hdr := handler.ProvideHandler(e)
 	handler.ProvideHandler(e)
@@ -66,6 +57,9 @@ func start_application(e *echo.Echo, port string) error {
 	)
 	// 静的ファイル
 	e.Static("/styles", "src/styles")
+
+	// ファイル
+	e.File("/favicon.ico", "images/favicon.ico")
 
 	// インデックス画面を表示
 	e.GET("/", index)
@@ -106,8 +100,7 @@ func index(c echo.Context) error {
 func logFormat() string {
 	var format string
 	format += "\n[  echo ]"
-	format += "time:${time_unix}\n"
-	// format += "time:${time_rfc3339}\n"
+	format += "time:${time_rfc3339}\n"
 	format += "- method:${method}\t"
 	format += "status:${status}\n"
 	format += "- error:${error}\n"

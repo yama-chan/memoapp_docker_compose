@@ -5,9 +5,9 @@
 | ディレクトリ/ ファイル名 | 用途                                                      |
 | ------------------------ | --------------------------------------------------------- |
 | db                       | docker-compose で立ち上がる MySQL で実行する SQL ファイル |
-| handler                  | メモアプリハンドラー                                      |
+| images                   | アイコン画像など                                          |
+| internal                 | サーバー処理                                              |
 | model                    | メモアプリのモデル郡                                      |
-| repository               | DB 接続処理                                               |
 | src                      | フロント HTML                                             |
 
 ## 必要なツール
@@ -21,13 +21,11 @@
 ### メモアプリの起動
 
 ```console
-cd ./
-docker-compose up --build
+make up
 ```
 
 ### お片付け
 
 ```console
-cd ./
-docker-compose down
+make down
 ```
