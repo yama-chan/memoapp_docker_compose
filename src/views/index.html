@@ -6,8 +6,8 @@
     <title></title>
   </head>
   <body>
-    <h2>メモ</h2>
     <p id="message"></p>
+    <h2>メモ</h2>
     <form name="form_memo">
       <input name="memo" type="text">
       <input type="button" data-action="submit" data-value="/" value="追加" onclick="setRequest(this);">
@@ -63,21 +63,27 @@
       }
 
       // メッセージがある場合は表示
-      if(res_data.Message != null && res_data.Message != "" && res_data.Message != undefined){
+      if(res_data.Message != ""){
         message.innerHTML = res_data.Message;
       }
+
+      // メモデータがない場合は何もしない
+      if(res_data.Memos == null){
+        return;
+      }
+      memos = res_data.Memos
 
       console.log(res_data);
       switch (action) {
         case 'get':
         case 'post':
         case 'submit':
-          res_data.forEach((memo) => {
+          memos.forEach((memo) => {
               list.innerHTML = `<li id="memo${memo.ID}">${memo.Memo}<button data-value="${memo.ID}" data-action="delete" onclick="setRequest(this);">削除</button></li>` + list.innerHTML;
           });
           break;
         case 'delete':
-          res_data.forEach((memo) => {
+          memos.forEach((memo) => {
             document.getElementById("memo" + memo.ID).remove();
           });
           break;

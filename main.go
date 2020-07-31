@@ -37,8 +37,8 @@ func main() {
 func start_application(e *echo.Echo, port string) error {
 
 	//  ハンドラー生成
-	// hdr := handler.ProvideHandler(e)
 	handler.ProvideHandler(e)
+	// handler.ProvideHandler(e)
 
 	// echoログのフォーマット
 	logger := middleware.LoggerWithConfig(middleware.LoggerConfig{

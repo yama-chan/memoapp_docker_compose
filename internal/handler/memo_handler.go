@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"memoapp/internal/database"
-	"memoapp/internal/types"
 	"memoapp/model"
 
 	"log"
@@ -14,13 +13,6 @@ import (
 )
 
 type (
-	// MemoAppOutput レスポンス用のデータ型
-	// TODO: 最終的にoutputはこれにする
-	MemoAppOutput struct {
-		Memos   types.Memos `json:"Memos"`
-		Message string      `json:"Message"`
-	}
-
 	// MemoHandler メモ用ハンドラー
 	MemoHandler struct {
 		HasCache bool

@@ -13,9 +13,20 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type Memorepo struct {
-	DB *sqlx.DB
-}
+type (
+
+	// MemoAppOutput レスポンス用のデータ型
+	// TODO: 最終的にoutputはこれにする
+	MemoAppOutput struct {
+		Memos   types.Memos `json:"Memos"`
+		Message string      `json:"Message"`
+	}
+
+	// Memorepo MySQL接続用の構造体
+	Memorepo struct {
+		DB *sqlx.DB
+	}
+)
 
 var _ Database = Memorepo{}
 
@@ -81,7 +92,9 @@ func (m Memorepo) Set(memo *model.Memo) ([]byte, error) {
 	}
 	memo.SetID(int(id)) // idをセット
 
-	bytes, err := json.Marshal(types.Memos{memo})
+	bytes, err := json.Marshal(MemoAppOutput{
+		Memos: types.Memos{memo},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +152,10 @@ func (m Memorepo) Get() ([]byte, error) {
 		return nil, err
 	}
 
-	bytes, err := json.Marshal(memos)
+	bytes, err := json.Marshal(
+		MemoAppOutput{
+			Memos: memos,
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -156,11 +172,14 @@ func (m Memorepo) DEL(id int) ([]byte, error) {
 		return nil, fmt.Errorf("fail to Delete Exec Query: %w", err)
 	}
 	tx.Commit()
-	bytes, err := json.Marshal(types.Memos{
-		&model.Memo{
-			ID: id,
-		},
-	})
+	bytes, err := json.Marshal(
+		MemoAppOutput{
+			Memos: types.Memos{
+				&model.Memo{
+					ID: id,
+				},
+			},
+		})
 	if err != nil {
 		return nil, fmt.Errorf("fail to Marshal json: %w", err)
 	}

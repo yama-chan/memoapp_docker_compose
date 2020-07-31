@@ -232,62 +232,17 @@ func (h *MemoHandler) clearRedisCache() error {
 // 	return middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {
 // 		// var res map[string]interface{}
 // 		log.Printf("info: resBody: %v", resBody)
-// 		var memo types.Memos
-// 		err := json.Unmarshal(resBody, &memo)
+// 		var out database.MemoAppOutput
+// 		err := json.Unmarshal(resBody, &out)
 // 		if err != nil {
 // 			log.Printf("error: fail to json.Unmarshal: %v\n", err)
 // 		}
 // 		if h.HasCache {
-// 			b, _ := json.Marshal(memo)
-// 			byteBuffer := bytes.NewBuffer(b)
-// 			if _, err := io.Copy(c.Response().Writer, byteBuffer); err != nil {
-// 				log.Printf("Failed to send out response: %v", err)
-// 			}
-// 			log.Printf("info: byteBuffer response: %v", byteBuffer)
-// 			out := MemoAppOutput{
-// 				Memos:   memo,
-// 				Message: "cached data",
-// 			}
+// 			out.Message = "cache data"
+// 			// b, _ := json.Marshal(out)
+// 			// c.Response().Flush()
+// 			// c.Response().Writer.Write(b)
 // 			log.Printf("info: response: %v", out)
 // 		}
 // 	})
-// }
-
-func (h *MemoHandler) WithProviderFinalizer() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			// ↑ BEFORE
-			err := next(c) // HandlerFunc : func(Context) error
-			// この場合、AFTERの処理は実行され、エラーを返す
-			// ↓ AFTER
-			if err != nil {
-				return err
-			}
-			return nil
-			// log.Println("info: database connection is Closing...")
-			// return h.repo.Close()
-		}
-	}
-}
-
-// func (controller ControllerBase) withProviderClient() echo.MiddlewareFunc {
-// 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-// 		return func(c echo.Context) error {
-// 			// TODO: ミドルウェアでプロバイダーにClientをもたせるようにする。
-// 			// controller.Provider.ProvideStorageOperator().
-
-// 			// ↑ BEFORE
-// 			err := next(c) // HandlerFunc : func(Context) error
-// 			// この場合、AFTERの処理は実行され、エラーを返す
-// 			// ↓ AFTER
-// 			if err != nil {
-// 				return err
-// 			}
-// 			finalizeError := controller.Provider.Finalize(c.Request().Context())
-// 			if finalizeError != nil {
-// 				return finalizeError
-// 			}
-// 			return nil
-// 		}
-// 	}
 // }
