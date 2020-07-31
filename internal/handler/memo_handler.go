@@ -33,7 +33,7 @@ func ProvideHandler(e *echo.Echo) *MemoHandler {
 	routes := []struct {
 		method     string
 		path       string
-		handler    endPointHandler
+		callback   endPointHandler
 		cache      bool // キャッシュをするかどうか
 		cacheClear bool // レスポンス返却後、キャッシュをリセットするかどうか
 	}{
@@ -61,9 +61,9 @@ func ProvideHandler(e *echo.Echo) *MemoHandler {
 	}
 	for _, r := range routes {
 		if r.cache {
-			e.Add(r.method, r.path, hdr.cacheEndpointHandler(r.handler))
+			e.Add(r.method, r.path, hdr.cacheEndpointHandler(r.callback))
 		} else {
-			e.Add(r.method, r.path, hdr.endpointHandler(r.handler, r.cacheClear))
+			e.Add(r.method, r.path, hdr.endpointHandler(r.callback, r.cacheClear))
 		}
 	}
 	// e.GET("/list", hdr.cacheEndpointHandler(hdr.MemoIndex))

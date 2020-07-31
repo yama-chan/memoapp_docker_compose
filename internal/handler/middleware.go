@@ -38,7 +38,7 @@ import (
 
 // ***********************************************************************
 
-func (h *MemoHandler) WithContextGen() echo.MiddlewareFunc {
+func (h *MemoHandler) CheckCache() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		//defer内部で発生したerrorを処理するのには名前付き返り値を利用する。
 		return func(c echo.Context) error {
