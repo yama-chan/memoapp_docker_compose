@@ -22,20 +22,20 @@ type (
 		Message string      `json:"Message"`
 	}
 
-	// Memorepo MySQL接続用の構造体
-	Memorepo struct {
+	// MySQLClient MySQL接続用の構造体
+	MySQLClient struct {
 		DB *sqlx.DB
 	}
 )
 
-var _ Database = Memorepo{}
+var _ Client = MySQLClient{}
 
-func ConnectMySql() (Database, error) {
+func ConnectMySql() (Client, error) {
 
 	// 環境変数
 	dsn := os.Getenv("DSN")
 	if dsn == "" {
-		return Memorepo{}, errors.New("DSN enviroment value is blank")
+		return MySQLClient{}, errors.New("DSN enviroment value is blank")
 	}
 
 	//db, err := sqlx.Connect("mysql", dsn) //sqlx.Connectでsqlx.Openとdb.Ping()をやっているので修正してもいいかも
@@ -43,7 +43,7 @@ func ConnectMySql() (Database, error) {
 	db, err := sqlx.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("error: failed to open database connection: %v\n", err)
-		return Memorepo{}, err
+		return MySQLClient{}, err
 	}
 
 	// 参考：Go勉強会
@@ -54,25 +54,25 @@ func ConnectMySql() (Database, error) {
 	// 疎通確認
 	if err := db.Ping(); err != nil {
 		log.Printf("error: failed to Ping verifies a connection : %v\n", err)
-		return Memorepo{}, err
+		return MySQLClient{}, err
 	}
 
 	log.Println("info: MySQLデータベースに接続しました")
-	return Memorepo{DB: db}, nil
+	return MySQLClient{DB: db}, nil
 }
 
 // Close 接続を閉じる
-func (m Memorepo) Close() error {
+func (m MySQLClient) Close() error {
 	return m.DB.Close()
 }
 
 // Exists 存在確認
-func (m Memorepo) Exists() (bool, error) {
+func (m MySQLClient) Exists() (bool, error) {
 	return false, nil
 }
 
 // func (m Memorepo) Set(memo *model.Memo) (sql.Result, error) {
-func (m Memorepo) Set(memo *model.Memo) ([]byte, error) {
+func (m MySQLClient) Set(memo *model.Memo) ([]byte, error) {
 
 	query := `INSERT INTO memos (memo)
 		VALUES (:memo);`
@@ -103,7 +103,7 @@ func (m Memorepo) Set(memo *model.Memo) ([]byte, error) {
 }
 
 // func (m Memorepo) Set(memo *model.Memo) (sql.Result, error) {
-func (m Memorepo) SetByte(data []byte) error {
+func (m MySQLClient) SetByte(data []byte) error {
 
 	// query := `INSERT INTO memos (memo)
 	// 	VALUES (:memo);`
@@ -129,7 +129,7 @@ func (m Memorepo) SetByte(data []byte) error {
 }
 
 // func (m Memorepo) GetAll() ([]*model.Memo, error) {
-func (m Memorepo) Get() ([]byte, error) {
+func (m MySQLClient) Get() ([]byte, error) {
 
 	// TODO: カーソル?
 	// if cursor <= 0 {
@@ -163,7 +163,7 @@ func (m Memorepo) Get() ([]byte, error) {
 }
 
 // func (m Memorepo) DEL(id int) error {
-func (m Memorepo) DEL(id int) ([]byte, error) {
+func (m MySQLClient) DEL(id int) ([]byte, error) {
 	query := "DELETE FROM memos WHERE id = ?"
 
 	tx := m.DB.MustBegin()

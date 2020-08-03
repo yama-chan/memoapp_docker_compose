@@ -12,23 +12,23 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-type MemoCache struct {
+type CacheClient struct {
 	Conn redis.Conn
 }
 
-var _ Database = &MemoCache{}
+var _ Client = &CacheClient{}
 
 // ConnectRedis Redisへ接続する
-func ConnectRedis() (Database, error) {
+func ConnectRedis() (Client, error) {
 
 	// 環境変数
 	host := os.Getenv("REDIS_HOST")
 	if host == "" {
-		return &MemoCache{}, errors.New("REDIS_HOST enviroment value is blank")
+		return &CacheClient{}, errors.New("REDIS_HOST enviroment value is blank")
 	}
 	port := os.Getenv("REDIS_PORT")
 	if port == "" {
-		return &MemoCache{}, errors.New("REDIS_PORT enviroment value is blank")
+		return &CacheClient{}, errors.New("REDIS_PORT enviroment value is blank")
 	}
 	// DB接続
 	conn, err := redis.Dial("tcp", fmt.Sprintf("%s:%s", host, port))
@@ -37,16 +37,16 @@ func ConnectRedis() (Database, error) {
 		panic(fmt.Errorf("failed to connect Redis : %w\n ", err))
 	}
 	log.Println("info: Redisデータベースに接続しました")
-	return &MemoCache{Conn: conn}, nil
+	return &CacheClient{Conn: conn}, nil
 }
 
 // Close 接続を閉じる
-func (m MemoCache) Close() error {
+func (m CacheClient) Close() error {
 	return m.Conn.Close()
 }
 
 // Set メモをキャッシュする
-func (m MemoCache) Set(memo *model.Memo) ([]byte, error) {
+func (m CacheClient) Set(memo *model.Memo) ([]byte, error) {
 	if m.Conn == nil {
 		return nil, errors.New("not initialized redis conn")
 	}
@@ -64,7 +64,7 @@ func (m MemoCache) Set(memo *model.Memo) ([]byte, error) {
 }
 
 // SetByte バイト配列をキャッシュする
-func (m MemoCache) SetByte(bytes []byte) error {
+func (m CacheClient) SetByte(bytes []byte) error {
 	if m.Conn == nil {
 		return errors.New("not initialized redis conn")
 	}
@@ -75,7 +75,7 @@ func (m MemoCache) SetByte(bytes []byte) error {
 }
 
 // Exists キャッシュの存在確認
-func (m MemoCache) Exists() (bool, error) {
+func (m CacheClient) Exists() (bool, error) {
 	if m.Conn == nil {
 		return false, errors.New("not initialized redis conn")
 	}
@@ -87,7 +87,7 @@ func (m MemoCache) Exists() (bool, error) {
 }
 
 // Get キャッシュデータを取得
-func (m MemoCache) Get() ([]byte, error) {
+func (m CacheClient) Get() ([]byte, error) {
 	if m.Conn == nil {
 		return nil, errors.New("not initialized redis conn")
 	}
@@ -109,7 +109,7 @@ func (m MemoCache) Get() ([]byte, error) {
 }
 
 // DEL キャッシュを削除
-func (m MemoCache) DEL(id int) ([]byte, error) {
+func (m CacheClient) DEL(id int) ([]byte, error) {
 	if m.Conn == nil {
 		return nil, errors.New("not initialized redis conn")
 	}
@@ -119,7 +119,7 @@ func (m MemoCache) DEL(id int) ([]byte, error) {
 	return nil, nil
 }
 
-func (s MemoCache) set(m *model.Memo) error {
+func (s CacheClient) set(m *model.Memo) error {
 	if s.Conn == nil {
 		return errors.New("not initialized redis conn")
 	}
@@ -136,7 +136,7 @@ func (s MemoCache) set(m *model.Memo) error {
 	return nil
 }
 
-func (s MemoCache) get() ([]byte, error) {
+func (s CacheClient) get() ([]byte, error) {
 	if s.Conn == nil {
 		return nil, errors.New("not initialized redis conn")
 	}

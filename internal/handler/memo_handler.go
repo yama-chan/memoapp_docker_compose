@@ -16,11 +16,11 @@ type (
 	// MemoHandler メモ用ハンドラー
 	MemoHandler struct {
 		HasCache bool
-		repo     database.Database
+		Client   database.Client
 		echo     *echo.Echo
 	}
 
-	endPointHandler func(c echo.Context) ([]byte, error)
+	EndPointHandler func(c echo.Context) ([]byte, error)
 )
 
 var (
@@ -33,7 +33,7 @@ func ProvideHandler(e *echo.Echo) *MemoHandler {
 	routes := []struct {
 		method     string
 		path       string
-		callback   endPointHandler
+		callback   EndPointHandler
 		cache      bool // キャッシュをするかどうか
 		cacheClear bool // レスポンス返却後、キャッシュをリセットするかどうか
 	}{
@@ -72,7 +72,7 @@ func ProvideHandler(e *echo.Echo) *MemoHandler {
 	return hdr
 }
 
-func (h *MemoHandler) Connect() (database.Database, error) {
+func (h *MemoHandler) Connect() (database.Client, error) {
 	redis, err := database.ConnectRedis()
 	if err != nil {
 		log.Printf("error: failed to Get memo data : %v\n", err)
@@ -95,7 +95,7 @@ func (h *MemoHandler) Connect() (database.Database, error) {
 
 func (h *MemoHandler) MemoIndex(c echo.Context) ([]byte, error) {
 
-	memos, err := h.repo.Get()
+	memos, err := h.Client.Get()
 	if err != nil {
 		log.Printf("error: failed to Get memo data : %v\n", err)
 		return nil, fmt.Errorf("failed to Get memo data: [%s]%w\n ", pkgName, err)
@@ -126,7 +126,7 @@ func (h *MemoHandler) MemoCreate(c echo.Context) ([]byte, error) {
 		return nil, fmt.Errorf("validation error:[%s] %w\n ", pkgName, err)
 	}
 
-	memoData, err := h.repo.Set(memo)
+	memoData, err := h.Client.Set(memo)
 	if err != nil {
 		log.Printf("error: pkg=%s データ挿入エラー : %v\n", pkgName, err)
 		return nil, fmt.Errorf("failed to insert memo data :[%s] %w\n ", pkgName, err)
@@ -144,7 +144,7 @@ func (h *MemoHandler) MemoDelete(c echo.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to converted to type int :[%s] %w\n ", pkgName, err)
 	}
 
-	memoID, err := h.repo.DEL(id)
+	memoID, err := h.Client.DEL(id)
 	if err != nil {
 		log.Printf("error: データ削除エラー :[%s] %v\n", pkgName, err)
 		return nil, fmt.Errorf("failed to delete memo data: [%s] %w\n ", pkgName, err)

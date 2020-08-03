@@ -1,12 +1,29 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"memoapp/internal/database"
+	"memoapp/model"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+)
+
+type (
+	Middleware interface {
+		Get() ([]byte, error)
+		Set(*model.Memo) ([]byte, error)
+		SetByte([]byte) error
+		DEL(int) ([]byte, error)
+	}
+
+	MiddlewareInfo struct {
+		Context context.Context
+		Client  database.Client
+		Next    Middleware
+	}
 )
 
 // ***********************************************************************
@@ -65,7 +82,7 @@ func (h *MemoHandler) CheckCache() echo.MiddlewareFunc {
 				log.Println("info: database connection is Closed")
 				return nil
 			}()
-			h.repo = database
+			h.Client = database
 
 			// ↑ BEFORE
 			// この場合、HandlerFuncが実行されてReturnとなる
@@ -76,7 +93,7 @@ func (h *MemoHandler) CheckCache() echo.MiddlewareFunc {
 	}
 }
 
-func (h *MemoHandler) cacheEndpointHandler(handler endPointHandler) echo.HandlerFunc {
+func (h *MemoHandler) cacheEndpointHandler(handler EndPointHandler) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		h.HasCache = false
 
@@ -104,7 +121,7 @@ func (h *MemoHandler) cacheEndpointHandler(handler endPointHandler) echo.Handler
 		// キャッシュが存在する場合
 		if cached {
 			log.Printf("info: Found form Redis Memo cached data")
-			h.repo = redis
+			h.Client = redis
 			data, err := handler(c)
 			if err != nil {
 				log.Printf("error: Internal Server Error: %v\n", err)
@@ -141,7 +158,7 @@ func (h *MemoHandler) cacheEndpointHandler(handler endPointHandler) echo.Handler
 	}
 }
 
-func (h *MemoHandler) endpointHandler(handler endPointHandler, cacheClear bool) echo.HandlerFunc {
+func (h *MemoHandler) endpointHandler(handler EndPointHandler, cacheClear bool) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		h.HasCache = false
 
@@ -188,7 +205,7 @@ func (h *MemoHandler) endpointHandler(handler endPointHandler, cacheClear bool) 
 	}
 }
 
-func (h *MemoHandler) execMySQLHandler(handler endPointHandler, c echo.Context) ([]byte, error) {
+func (h *MemoHandler) execMySQLHandler(handler EndPointHandler, c echo.Context) ([]byte, error) {
 	// MySQLに接続
 	database, err := database.ConnectMySql()
 	if err != nil {
@@ -198,19 +215,19 @@ func (h *MemoHandler) execMySQLHandler(handler endPointHandler, c echo.Context) 
 	// RedisのClose処理
 	defer database.Close()
 
-	h.repo = database
+	h.Client = database
 	return handler(c)
 }
 
 func (h *MemoHandler) clearRedisCache() error {
 	var (
-		redis database.Database
+		redis database.Client
 	)
 
 	// 型チェック
-	switch h.repo.(type) {
-	case database.MemoCache:
-		redis = h.repo
+	switch h.Client.(type) {
+	case database.CacheClient:
+		redis = h.Client
 	default:
 		// Redisに接続
 		r, err := database.ConnectRedis()
