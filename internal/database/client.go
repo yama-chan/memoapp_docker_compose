@@ -2,23 +2,24 @@ package database
 
 import (
 	"memoapp/model"
+	"net/url"
 )
 
 // Client データベースクライアントのインターフェース
 type Client interface {
-	Close() error
-	Exists() (bool, error)
-	Get() ([]byte, error)
 	Set(*model.Memo) ([]byte, error)
-	SetByte([]byte) error
-	DEL(int) ([]byte, error)
+	Get(url.Values) ([]byte, error)
+	DEL(url.Values) ([]byte, error)
+	Exists(url.Values) (bool, error)
+	SetByte(url.Values, []byte) error
+	Close() error
 }
 
 var (
 	pkgName = "database"
 )
 
-// Connect DB接続を行う
-func Connect() (Client, error) {
-	return ConnectMySql()
+// CheckCache キャッシュの有無の確認を行う
+func CheckCache() (Client, error) {
+	return nil, nil
 }

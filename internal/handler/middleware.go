@@ -5,25 +5,10 @@ import (
 	"fmt"
 	"log"
 	"memoapp/internal/database"
-	"memoapp/model"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-)
-
-type (
-	Middleware interface {
-		Get() ([]byte, error)
-		Set(*model.Memo) ([]byte, error)
-		SetByte([]byte) error
-		DEL(int) ([]byte, error)
-	}
-
-	MiddlewareInfo struct {
-		Context context.Context
-		Client  database.Client
-		Next    Middleware
-	}
+	"github.com/labstack/echo/v4/middleware"
 )
 
 // ***********************************************************************
@@ -55,7 +40,43 @@ type (
 
 // ***********************************************************************
 
-func (h *MemoHandler) CheckCache() echo.MiddlewareFunc {
+func UseMySQL() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		//defer内部で発生したerrorを処理するのには名前付き返り値を利用する。
+		return func(c echo.Context) error {
+			var (
+				ctx = c.Request().Context()
+			)
+			// DB接続
+			db, err := database.ConnectMySql()
+			if err != nil {
+				log.Printf("error: failed to Connect MySql : %v\n", err)
+				return fmt.Errorf("failed to Connect MySql: [%s]%w\n ", pkgName, err)
+			}
+			// TODO: add key type
+			ctx = context.WithValue(ctx, "storeKey", db)
+
+			// contextにセットした値をリクエストにセットする
+			c.SetRequest(c.Request().WithContext(ctx))
+
+			err = next(c) // HandlerFunc : func(Context) error
+			if err != nil {
+				log.Printf("error: Internal Server Error[%s]: %v\n ", pkgName2, err)
+				return fmt.Errorf("Internal Server Error[%s]: %w\n ", pkgName2, err)
+			}
+
+			err = db.Close()
+			if err != nil {
+				log.Printf("error: failed to Close DB: %v\n", err)
+				return fmt.Errorf("failed to Close DB: [%s]%w\n ", pkgName, err)
+			}
+			log.Println("info: database connection is Closed")
+			return nil
+		}
+	}
+}
+
+func (h *MemoHandler2) UseCache() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		//defer内部で発生したerrorを処理するのには名前付き返り値を利用する。
 		return func(c echo.Context) error {
@@ -65,30 +86,145 @@ func (h *MemoHandler) CheckCache() echo.MiddlewareFunc {
 			fmt.Printf("c.QueryParams(): %v\n", c.QueryParams())
 			fmt.Printf("c.QueryString(): %v\n", c.QueryString())
 
+			var (
+				db  database.Client
+				ctx = c.Request().Context()
+			)
+
 			// DB接続
-			database, err := database.Connect()
+			db, err := database.ConnectRedis()
 			if err != nil {
-				log.Printf("error: failed to connection DB: %v\n", err)
-				return err
+				log.Printf("error: failed to Connect Redis : %v\n", err)
+				return fmt.Errorf("failed to Connect Redis: [%s]%w\n ", pkgName, err)
 			}
 
-			// DBのClose処理
-			defer func() error {
-				err = database.Close()
+			// キャッシュの有無を確認
+			cached, err := db.Exists(c.Request().URL.Query())
+			if err != nil {
+				log.Printf("error: failed to Get cached data : %v\n", err)
+				return fmt.Errorf("failed to Get cached data: [%s]%w\n ", pkgName, err)
+			}
+
+			// キャッシュされている場合
+			if cached {
+				// TODO: add key type
+				h.HasCache = true
+				ctx = context.WithValue(ctx, "storeKey", db)
+			} else {
+				h.HasCache = false
+				log.Printf("info: Not Found from Redis Memo cached data")
+				db, err = database.ConnectMySql()
 				if err != nil {
-					log.Printf("error: failed to Close DB: %v\n", err)
-					return err
+					log.Printf("error: failed to Connect MySql : %v\n", err)
+					return fmt.Errorf("failed to Connect MySql: [%s]%w\n ", pkgName, err)
 				}
-				log.Println("info: database connection is Closed")
-				return nil
-			}()
-			h.Client = database
+				// TODO: add key type
+				ctx = context.WithValue(ctx, "storeKey", db)
+			}
+
+			// contextにセットした値をリクエストにセットする
+			c.SetRequest(c.Request().WithContext(ctx))
 
 			// ↑ BEFORE
 			// この場合、HandlerFuncが実行されてReturnとなる
-			return next(c) // HandlerFunc : func(Context) error
+			// return next(c) // HandlerFunc : func(Context) error
+			err = next(c) // HandlerFunc : func(Context) error
+			if err != nil {
+				log.Printf("error: Internal Server Error[%s]: %v\n ", pkgName2, err)
+				return fmt.Errorf("Internal Server Error[%s]: %w\n ", pkgName2, err)
+			}
+
 			// この場合、AFTERの処理は実行され、エラーを返す
 			// ↓ AFTER
+
+			if !cached {
+				// キャッシュが無い場合
+			}
+			err = db.Close()
+			if err != nil {
+				log.Printf("error: failed to Close DB: %v\n", err)
+				return fmt.Errorf("failed to Close DB: [%s]%w\n ", pkgName, err)
+			}
+			log.Println("info: database connection is Closed")
+			return nil
+		}
+	}
+}
+
+func (h *MemoHandler2) SetCache() echo.MiddlewareFunc {
+	return middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {
+		var (
+			client database.Client
+		)
+		if !h.HasCache {
+			db, ok := c.Request().Context().Value("storeKey").(database.Client)
+			if !ok {
+				log.Printf("error: failed to Get client from context: [%s]\n ", pkgName2)
+				// return fmt.Errorf("failed to Get client from context: [%s]\n ", pkgName2)
+			}
+			// 型チェック
+			switch db.(type) {
+			case database.CacheClient:
+				log.Println("info: data is already cached.")
+				client = db
+			default:
+				// Redisに接続
+				r, err := database.ConnectRedis()
+				if err != nil {
+					log.Printf("error: Redisへの接続に失敗しました。: %v\n", err)
+					// return fmt.Errorf("failed to connection Redis: %w", err)
+				}
+				client = r
+			}
+			err := client.SetByte(c.Request().URL.Query(), resBody)
+			if err != nil {
+				// とりあえずログのみ出力
+				log.Printf("error: fail to SetByte Error: %v\n", err)
+				// return c.NoContent(http.StatusInternalServerError)
+			}
+			log.Println("info: memo data is cached")
+		}
+	})
+}
+
+func (h *MemoHandler2) ClearCache() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			err := next(c)
+			if err != nil {
+				return fmt.Errorf("Internal Server Error: Middleware[%s]\n ", pkgName2)
+			}
+			var (
+				client database.Client
+			)
+
+			db, ok := c.Request().Context().Value("storeKey").(database.Client)
+			if !ok {
+				return fmt.Errorf("failed to Get client from context: [%s]\n ", pkgName2)
+			}
+			// 型チェック
+			switch db.(type) {
+			case database.CacheClient:
+				log.Println("info: data is already cached.")
+				client = db
+			default:
+				// Redisに接続
+				redis, err := database.ConnectRedis()
+				if err != nil {
+					log.Printf("error: Redisへの接続に失敗しました。: %v\n", err)
+					return fmt.Errorf("failed to connection Redis: %w", err)
+				}
+				client = redis
+			}
+			// _, err = client.DEL(c.Request().URL.Query())
+			err = client.(database.CacheClient).Flush()
+			if err != nil {
+				// とりあえずログのみ出力
+				log.Printf("error: fail to clear cache: %v\n", err)
+				return fmt.Errorf("error: fail to clear cache: [%s]%w\n ", pkgName, err)
+			}
+			log.Println("info: cache is cleared")
+			return nil
 		}
 	}
 }
@@ -113,7 +249,7 @@ func (h *MemoHandler) cacheEndpointHandler(handler EndPointHandler) echo.Handler
 		defer redis.Close()
 
 		// キャッシュの確認
-		cached, err := redis.Exists()
+		cached, err := redis.Exists(c.Request().URL.Query())
 		if err != nil {
 			log.Printf("error: failed to Get cached data : %v\n", err)
 			return fmt.Errorf("failed to Get cached data: [%s]%w\n ", pkgName, err)
@@ -146,7 +282,7 @@ func (h *MemoHandler) cacheEndpointHandler(handler EndPointHandler) echo.Handler
 		}
 		c.Response().After(func() {
 			// after Response
-			err = redis.SetByte(data)
+			err = redis.SetByte(c.Request().URL.Query(), data)
 			if err != nil {
 				// とりあえずログのみ出力
 				log.Printf("error: fail to SetByte Error: %v\n", err)
@@ -188,7 +324,7 @@ func (h *MemoHandler) endpointHandler(handler EndPointHandler, cacheClear bool) 
 		// ※ c.NoContentだとWriteがよばれないので実行されない。
 		c.Response().After(func() {
 			if cacheClear {
-				err = h.clearRedisCache()
+				err = h.clearRedisCache(c)
 				if err != nil {
 					// とりあえずログのみ出力
 					log.Printf("error: fail to clear cache: %v\n", err)
@@ -219,7 +355,7 @@ func (h *MemoHandler) execMySQLHandler(handler EndPointHandler, c echo.Context) 
 	return handler(c)
 }
 
-func (h *MemoHandler) clearRedisCache() error {
+func (h *MemoHandler) clearRedisCache(c echo.Context) error {
 	var (
 		redis database.Client
 	)
@@ -241,11 +377,12 @@ func (h *MemoHandler) clearRedisCache() error {
 	defer redis.Close()
 
 	// キャッシュの削除
-	_, err := redis.DEL(0)
+	// _, err := redis.DEL(c.Request().URL.Query())
+	err := redis.(database.CacheClient).Flush()
 	return err
 }
 
-// func (h *MemoHandler) TestGetBodyDump() echo.MiddlewareFunc {
+// func Test() echo.MiddlewareFunc {
 // 	return middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {
 // 		// var res map[string]interface{}
 // 		log.Printf("info: resBody: %v", resBody)

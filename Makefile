@@ -8,5 +8,7 @@ up:
 .PHONY: down
 down:
 	docker-compose down && \
-	docker volume prune --force
+	docker volume prune --force && \
+	docker-compose kill && \
+	docker network prune --force
 

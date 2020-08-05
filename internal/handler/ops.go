@@ -35,7 +35,7 @@ type (
 		removeCache bool
 	}
 
-	Middlewares []Middleware
+	// Middlewares []Middleware
 
 	getOps    func() ([]byte, error)
 	setOps    func(*model.Memo) ([]byte, error)
@@ -43,12 +43,12 @@ type (
 )
 
 func GetOps(ctx echo.Context, info CacheConfig) ([]byte, error) {
-	hdr, err := New(info)
+	hdr, err := New(ctx, info)
 	if err != nil {
 		return nil, fmt.Errorf("failed to New *CacheHandler: [%s]%w\n ", pkgName2, err)
 	}
 
-	data, err := hdr.client.Get()
+	data, err := hdr.client.Get(ctx.Request().URL.Query())
 	if err != nil {
 		return nil, fmt.Errorf("failed to New *CacheHandler: [%s]%w\n ", pkgName2, err)
 	}
@@ -70,7 +70,7 @@ func GetOps(ctx echo.Context, info CacheConfig) ([]byte, error) {
 	return data, err
 }
 func SetOps(ctx echo.Context, info CacheConfig, memo *model.Memo) ([]byte, error) {
-	hdr, err := New(info)
+	hdr, err := New(ctx, info)
 	if err != nil {
 		return nil, fmt.Errorf("failed to New *CacheHandler: [%s]%w\n ", pkgName2, err)
 	}
@@ -97,7 +97,7 @@ func SetOps(ctx echo.Context, info CacheConfig, memo *model.Memo) ([]byte, error
 	return data, err
 }
 
-func New(info CacheConfig) (*CacheHandler, error) {
+func New(ctx echo.Context, info CacheConfig) (*CacheHandler, error) {
 	var (
 		redis database.Client
 	)
@@ -107,7 +107,7 @@ func New(info CacheConfig) (*CacheHandler, error) {
 			log.Printf("error: failed to Connect Redis : %v\n", err)
 			return nil, fmt.Errorf("failed to Connect Redis: [%s]%w\n ", pkgName2, err)
 		}
-		cached, err := redis.Exists()
+		cached, err := redis.Exists(ctx.Request().URL.Query())
 		if err != nil {
 			log.Printf("error: failed to Get cached data : %v\n", err)
 			return nil, fmt.Errorf("failed to Get cached data: [%s]%w\n ", pkgName2, err)
@@ -145,10 +145,10 @@ func (c *CacheHandler) setCache(ctx echo.Context, data []byte) error {
 	}
 	ctx.Response().After(func() {
 		// after Response
-		err := c.cache.SetByte(data)
+		err := c.cache.SetByte(ctx.Request().URL.Query(), data)
 		if err != nil {
 			// とりあえずログのみ出力
-			log.Printf("error: fail to SetByte Error: %v\n", err)
+			log.Printf("error: fail to SetByte Redis: %v\n", err)
 			// return c.NoContent(http.StatusInternalServerError)
 		}
 		log.Println("info: memo data is cached")
@@ -175,7 +175,7 @@ func (c *CacheHandler) clearCache(ctx echo.Context) error {
 
 	ctx.Response().After(func() {
 		// after Response
-		_, err := c.cache.DEL(0) // ここにキーが引数として入る
+		_, err := c.cache.DEL(ctx.Request().URL.Query()) // ここにキーが引数として入る
 		if err != nil {
 			// とりあえずログのみ出力
 			log.Printf("error: fail to SetByte Error: %v\n", err)

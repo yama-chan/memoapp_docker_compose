@@ -7,7 +7,9 @@ import (
 	"log"
 	"memoapp/internal/types"
 	"memoapp/model"
+	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -18,8 +20,8 @@ type (
 	// MemoAppOutput レスポンス用のデータ型
 	// TODO: 最終的にoutputはこれにする
 	MemoAppOutput struct {
-		Memos   types.Memos `json:"Memos"`
-		Message string      `json:"Message"`
+		Results types.Contents `json:"Results"`
+		Message string         `json:"Message"`
 	}
 
 	// MySQLClient MySQL接続用の構造体
@@ -30,7 +32,7 @@ type (
 
 var _ Client = MySQLClient{}
 
-func ConnectMySql() (Client, error) {
+func ConnectMySql() (MySQLClient, error) {
 
 	// 環境変数
 	dsn := os.Getenv("DSN")
@@ -38,7 +40,13 @@ func ConnectMySql() (Client, error) {
 		return MySQLClient{}, errors.New("DSN enviroment value is blank")
 	}
 
+	// DB接続 + 疎通確認
 	//db, err := sqlx.Connect("mysql", dsn) //sqlx.Connectでsqlx.Openとdb.Ping()をやっているので修正してもいいかも
+	// if err != nil {
+	// 	log.Printf("error: failed to connect database: %w\n", err)
+	// 	return MySQLClient{}, err
+	// }
+
 	// DB接続
 	db, err := sqlx.Open("mysql", dsn)
 	if err != nil {
@@ -46,16 +54,16 @@ func ConnectMySql() (Client, error) {
 		return MySQLClient{}, err
 	}
 
-	// 参考：Go勉強会
-	// コネクションの有効期限を設定しておかないと、
-	// 死んだコネクションをいつまでも持ち続けるので設定するほうが良い。
-	db.SetConnMaxLifetime(time.Minute)
-
 	// 疎通確認
 	if err := db.Ping(); err != nil {
 		log.Printf("error: failed to Ping verifies a connection : %v\n", err)
 		return MySQLClient{}, err
 	}
+
+	// 参考：Go勉強会
+	// コネクションの有効期限を設定しておかないと、
+	// 死んだコネクションをいつまでも持ち続けるので設定するほうが良い。
+	db.SetConnMaxLifetime(time.Minute)
 
 	log.Println("info: MySQLデータベースに接続しました")
 	return MySQLClient{DB: db}, nil
@@ -67,7 +75,7 @@ func (m MySQLClient) Close() error {
 }
 
 // Exists 存在確認
-func (m MySQLClient) Exists() (bool, error) {
+func (m MySQLClient) Exists(params url.Values) (bool, error) {
 	return false, nil
 }
 
@@ -87,15 +95,16 @@ func (m MySQLClient) Set(memo *model.Memo) ([]byte, error) {
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		log.Printf("failed to get LastInsertId : %v\n", err)
+		log.Printf("error: failed to get LastInsertId : %v\n", err)
 		return nil, err
 	}
 	memo.SetID(int(id)) // idをセット
 
 	bytes, err := json.Marshal(MemoAppOutput{
-		Memos: types.Memos{memo},
+		Results: types.Results{memo},
 	})
 	if err != nil {
+		log.Printf("error: failed to Marshal memo: %v\n", types.Results{memo})
 		return nil, err
 	}
 
@@ -103,7 +112,7 @@ func (m MySQLClient) Set(memo *model.Memo) ([]byte, error) {
 }
 
 // func (m Memorepo) Set(memo *model.Memo) (sql.Result, error) {
-func (m MySQLClient) SetByte(data []byte) error {
+func (m MySQLClient) SetByte(params url.Values, data []byte) error {
 
 	// query := `INSERT INTO memos (memo)
 	// 	VALUES (:memo);`
@@ -128,16 +137,19 @@ func (m MySQLClient) SetByte(data []byte) error {
 	return nil
 }
 
-// func (m Memorepo) GetAll() ([]*model.Memo, error) {
-func (m MySQLClient) Get() ([]byte, error) {
+// func (m Memorepo) GetAll() (types.Results, error) {
+func (m MySQLClient) Get(params url.Values) ([]byte, error) {
+	var (
+		memo = params.Get("memo")
+		err  error
+	)
 
-	// TODO: カーソル?
-	// if cursor <= 0 {
-	// 	cursor = math.MaxInt32
-	// }
-
-	// TODO: プライマリーキーとは別にidがある理由は？ORDER BYはIDでなく作成日付でやるように修正
-	query := `SELECT * FROM memos ORDER BY id asc;`
+	query := "SELECT * FROM memos"
+	if memo != "" {
+		query += " WHERE memo LIKE " + "'%" + memo + "%'"
+	}
+	query += " ORDER BY id asc;"
+	log.Printf("info: Select query -> %v\n ", query)
 
 	// make 関数の第 1 引数([]int)が型、第 2 引数(length)が 長さ 、第 3 引数(capacity)が 容量 を意味しています。
 	// 長さ が 容量 を超えた時に、その時の 容量 の倍の 容量 が新たに確保される
@@ -148,13 +160,16 @@ func (m MySQLClient) Get() ([]byte, error) {
 	//予め容量を1０としている理由はLIMITがあるから？しかし長さは０なので空のスライスができる
 	// つまり空のスライスが出来るがappendしていって長さが10を超えた場合は容量が倍になる設定
 	memos := make([]*model.Memo, 0)
-	if err := m.DB.Select(&memos, query); err != nil { //Select関数内でappendしているので長さは０で可変にする
-		return nil, err
+	err = m.DB.Select(&memos, query) //Select関数内でappendしているので長さは０で可変にする
+	if err != nil {                  //Select関数内でappendしているので長さは０で可変にする
+		log.Printf("error: failed to NamedQuery: [%s] %v\n ", pkgName, err)
+		return nil, fmt.Errorf("failed to NamedQuery: [%s] %w\n ", pkgName, err)
 	}
 
 	bytes, err := json.Marshal(
 		MemoAppOutput{
-			Memos: memos,
+			// Results: results,
+			Results: memos,
 		})
 	if err != nil {
 		return nil, err
@@ -162,21 +177,30 @@ func (m MySQLClient) Get() ([]byte, error) {
 	return bytes, nil
 }
 
-// func (m Memorepo) DEL(id int) error {
-func (m MySQLClient) DEL(id int) ([]byte, error) {
+func (m MySQLClient) DEL(params url.Values) ([]byte, error) {
+	var (
+		id = params.Get("id")
+	)
+	memoID, err := strconv.Atoi(id)
+	if err != nil {
+		log.Printf("error: failed to converted to type int: pkg=%s %v\n", pkgName, err)
+		return nil, fmt.Errorf("failed to converted to type int: [%s] %w\n ", pkgName, err)
+	}
+
 	query := "DELETE FROM memos WHERE id = ?"
 
 	tx := m.DB.MustBegin()
-	if _, err := tx.Exec(query, id); err != nil {
+	if _, err := tx.Exec(query, memoID); err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("fail to Delete Exec Query: %w", err)
 	}
+
 	tx.Commit()
 	bytes, err := json.Marshal(
 		MemoAppOutput{
-			Memos: types.Memos{
+			Results: types.Results{
 				&model.Memo{
-					ID: id,
+					ID: memoID,
 				},
 			},
 		})

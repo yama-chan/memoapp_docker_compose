@@ -9,8 +9,9 @@
     <p id="message"></p>
     <h2>メモ</h2>
     <form name="form_memo">
-      <input name="memo" type="text">
+      <input id="memo" name="memo" type="text">
       <input type="button" data-action="submit" data-value="/" value="追加" onclick="setRequest(this);">
+      <input type="button" data-action="search" data-value="/" value="検索" onclick="setRequest(this);">
     </form>
     <ul id="memo_list"></ul>
 </body>
@@ -33,7 +34,11 @@
         request.open('POST', '/' + value, true);
         break;
       case 'delete':
-        request.open('DELETE', '/' + value, true);
+        request.open('DELETE', '/?id=' + value, true);
+        break;
+      case 'search':
+        var input = document.getElementById("memo").value;
+        request.open('GET', '/list?memo='+input, true);
         break;
       case 'submit':
         fd = new FormData(document.forms["form_memo"])
@@ -68,13 +73,17 @@
       }
 
       // メモデータがない場合は何もしない
-      if(res_data.Memos == null){
+      if(res_data.Results == null){
         return;
       }
-      memos = res_data.Memos
+      memos = res_data.Results
 
-      console.log(res_data);
       switch (action) {
+        case 'delete':
+          memos.forEach((memo) => {
+            document.getElementById("memo" + memo.ID).remove();
+          });
+          break;
         case 'get':
         case 'post':
         case 'submit':
@@ -82,11 +91,12 @@
               list.innerHTML = `<li id="memo${memo.ID}">${memo.Memo}<button data-value="${memo.ID}" data-action="delete" onclick="setRequest(this);">削除</button></li>` + list.innerHTML;
           });
           break;
-        case 'delete':
-          memos.forEach((memo) => {
-            document.getElementById("memo" + memo.ID).remove();
-          });
-          break;
+        case 'search':
+            list.innerHTML = ""
+            memos.forEach((memo) => {
+                list.innerHTML = `<li id="memo${memo.ID}">${memo.Memo}<button data-value="${memo.ID}" data-action="delete" onclick="setRequest(this);">削除</button></li>` + list.innerHTML;
+            });
+            break;
         default:
           console.log(`Sorry, we are out of ${action}.`);
       }
